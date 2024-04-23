@@ -4,8 +4,13 @@
 {% set current_url = ea_url() %}
 
 {% set target_entity = field.doctrineMetadata.get('targetEntity') %}
-{% set target_entity_crud_fqcn = ea.crudControllers.findCrudFqcnByEntityFqcn(target_entity) %}
-{% set crud_controller = ea.crudControllers.findCrudFqcnByEntityFqcn(target_entity) %}
+{% if field.getCustomOption('crudControllerFcqn') %}
+    {% set target_entity_crud_fqcn = field.getCustomOption('crudControllerFcqn') %}
+    {% set crud_controller = field.getCustomOption('crudControllerFcqn') %}
+{% else %}
+  {% set target_entity_crud_fqcn = ea.crudControllers.findCrudFqcnByEntityFqcn(target_entity) %}
+  {% set crud_controller = ea.crudControllers.findCrudFqcnByEntityFqcn(target_entity) %}
+{% endif %}
 
 {% set url = ea_url().unset('entityId').setController(crud_controller).setAction('index').set('embedContext', {
   mappedBy: field.doctrineMetadata.get('mappedBy'),
@@ -96,6 +101,7 @@
                   })
                   // highlight results
                   const searchQuery = new URL(url).searchParams.get('query');
+                  console.log(searchQuery);
                   if(searchQuery) {
                       $(embedContent).find('table tbody td:not(.actions)').highlight($.merge([searchQuery], searchQuery.split(' ')));
                   }

@@ -13,6 +13,8 @@ final class EmbedField implements FieldInterface
 {
     use FieldTrait;
 
+
+
     public static function new(string $propertyName, ?string $label = null): self
     {
         return (new self())
@@ -20,4 +22,16 @@ final class EmbedField implements FieldInterface
             ->setLabel($label)
             ->setTemplateName('crud/field/embed');
     }
+
+    public function setCrudControllerFcqn(string $crudControllerFcqn): self
+    {
+        $this->dto->setCustomOption('crudControllerFcqn', $crudControllerFcqn);
+        return $this;
+    }
+
+    public function getCrudControllerFcqn(): ?string
+    {
+        return $this->dto->getCustomOption('crudControllerFcqn');
+    }
+
 }
