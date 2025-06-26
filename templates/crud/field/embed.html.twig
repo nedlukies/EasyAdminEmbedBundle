@@ -12,7 +12,7 @@
   {% set crud_controller = ea.crudControllers.findCrudFqcnByEntityFqcn(target_entity) %}
 {% endif %}
 
-{% set url = ea_url().unset('entityId').setController(crud_controller).setAction('index').set('embedContext', {
+{% set url = ea_url().unset('entityId').unset('query').setController(crud_controller).setAction('index').set('embedContext', {
   mappedBy: field.doctrineMetadata.get('mappedBy'),
   embeddedIn: entity.primaryKeyValue,
   crud_id: ea.crudControllers.findCrudIdByCrudFqcn(ea.crud.controllerFqcn),
