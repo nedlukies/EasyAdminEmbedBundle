@@ -15,13 +15,16 @@ use EasyCorp\Bundle\EasyAdminBundle\Exception\InsufficientEntityPermissionExcept
 use EasyCorp\Bundle\EasyAdminBundle\Event\AfterCrudActionEvent;
 use EasyCorp\Bundle\EasyAdminBundle\Event\BeforeCrudActionEvent;
 use EasyCorp\Bundle\EasyAdminBundle\Exception\ForbiddenActionException;
+use EasyCorp\Bundle\EasyAdminBundle\Factory\ActionFactory;
 use EasyCorp\Bundle\EasyAdminBundle\Factory\EntityFactory;
+use EasyCorp\Bundle\EasyAdminBundle\Factory\FieldFactory;
 use EasyCorp\Bundle\EasyAdminBundle\Factory\FilterFactory;
 use EasyCorp\Bundle\EasyAdminBundle\Factory\PaginatorFactory;
 use EasyCorp\Bundle\EasyAdminBundle\Registry\TemplateRegistry;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use EasyCorp\Bundle\EasyAdminBundle\Security\Permission;
 use ReflectionClass;
+use Symfony\Contracts\Service\Attribute\Required;
 
 /**
  * AbstractCrudController
@@ -33,13 +36,26 @@ abstract class AbstractCrudController extends BaseAbstractCrudController {
 
     private $called = 0;
 
+    #[Required]
+    public EntityFactory $entityFactory;
+    #[Required]
+    public FieldFactory $fieldFactory;
+    #[Required]
+    public ActionFactory $actionFactory;
+
     public function index(\EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext $context)
     {
         $this->called++;
+
         $reflection = new ReflectionClass($context);
-        $templateRegistryProperty = $reflection->getProperty('templateRegistry');
+
+        $i18nContextProperty = $reflection->getProperty('i18nContext');
+        $i18nContextProperty->setAccessible(true);
+        $i18nContext = $i18nContextProperty->getValue($context);
+        $i18nContextReflection = new ReflectionClass($i18nContext);
+        $templateRegistryProperty = $i18nContextReflection->getProperty( 'templateRegistry' );
         $templateRegistryProperty->setAccessible(true);
-        $templateRegistry = $templateRegistryProperty->getValue( $context);
+        $templateRegistry = $templateRegistryProperty->getValue( $i18nContext );
 
         $templateRegistryReflection = new ReflectionClass($templateRegistry);
         $templateRegistryTemplatesProperty = $templateRegistryReflection->getProperty('templates');
@@ -91,9 +107,9 @@ abstract class AbstractCrudController extends BaseAbstractCrudController {
                 ->generateUrl());
         }
 
-        $entities = $this->container->get(EntityFactory::class)->createCollection($context->getEntity(), $paginator->getResults());
-        $this->container->get(EntityFactory::class)->processFieldsForAll($entities, $fields);
-        $actions = $this->container->get(EntityFactory::class)->processActionsForAll($entities, $context->getCrud()->getActionsConfig());
+        $entities = $this->entityFactory->createCollection($context->getEntity(), $paginator->getResults());
+        $this->fieldFactory->processFieldsForAll($entities, $fields);
+        $actions = $this->actionFactory->processGlobalActionsAndEntityActionsForAll($entities, $context->getCrud()->getActionsConfig());
 
         $responseParameters = $this->configureResponseParameters(KeyValueStore::new([
             'pageName' => Crud::PAGE_INDEX,
@@ -132,9 +148,10 @@ abstract class AbstractCrudController extends BaseAbstractCrudController {
             throw new InsufficientEntityPermissionException($context);
         }
 
-        $this->container->get(EntityFactory::class)->processFields($context->getEntity(), FieldCollection::new($this->configureFields(Crud::PAGE_DETAIL)));
+        $this->fieldFactory->processFields($context->getEntity(), FieldCollection::new($this->configureFields(Crud::PAGE_DETAIL)));
         $context->getCrud()->setFieldAssets($this->getFieldAssets($context->getEntity()->getFields()));
-        $this->container->get(EntityFactory::class)->processActions($context->getEntity(), $context->getCrud()->getActionsConfig());
+        $this->actionFactory->processEntityActions($context->getEntity(), $context->getCrud()->getActionsConfig());
+
         $responseParameters = $this->configureResponseParameters(KeyValueStore::new([
             'pageName' => Crud::PAGE_DETAIL,
             'templateName' => 'crud/detail',
